@@ -15,6 +15,7 @@ export default function AddFlow({ onClose, onSaved }) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(null);
   const [date, setDate] = useState(toDateStr(new Date()));
+  const [saving, setSaving] = useState(false);
 
   const handleTypeSelect = (t) => {
     setType(t);
@@ -32,6 +33,7 @@ export default function AddFlow({ onClose, onSaved }) {
 
   const handleDateSelect = async (d) => {
     setDate(d);
+    setSaving(true);
     // Save locally
     const tx = {
       type,
@@ -41,8 +43,8 @@ export default function AddFlow({ onClose, onSaved }) {
       createdAt: Date.now(),
     };
     const id = await db.transactions.add(tx);
-    // Sync to Google Sheets in background
-    syncToSheet([{ ...tx, id }]).catch(() => {});
+    // Sync to Google Sheets - wait for it before closing
+    await syncToSheet([{ ...tx, id }]).catch(() => {});
     onSaved?.();
     onClose();
   };
@@ -138,6 +140,15 @@ export default function AddFlow({ onClose, onSaved }) {
           </div>
         )}
       </div>
+
+      {/* Saving overlay */}
+      {saving && (
+        <div className="absolute inset-0 z-50 bg-dark-bg/90 flex flex-col items-center justify-center fade-in">
+          <div className="text-5xl mb-4 animate-bounce">💾</div>
+          <p className="text-lg font-medium">Đang lưu...</p>
+          <p className="text-sm text-gray-400 mt-1">Đồng bộ Google Sheets</p>
+        </div>
+      )}
     </div>
   );
 }
