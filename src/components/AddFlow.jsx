@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { db } from '../lib/db';
 import { toDateStr, formatMoney } from '../lib/utils';
 import { getCategoryById } from '../lib/categories';
+import { syncToSheet } from '../lib/sheets';
 import NumberPad from './NumberPad';
 import CategoryGrid from './CategoryGrid';
 import DatePicker from './DatePicker';
@@ -31,14 +32,17 @@ export default function AddFlow({ onClose, onSaved }) {
 
   const handleDateSelect = async (d) => {
     setDate(d);
-    // Save
-    await db.transactions.add({
+    // Save locally
+    const tx = {
       type,
       amount: parseInt(amount, 10),
       categoryId: category.id,
       date: d,
       createdAt: Date.now(),
-    });
+    };
+    const id = await db.transactions.add(tx);
+    // Sync to Google Sheets in background
+    syncToSheet([{ ...tx, id }]).catch(() => {});
     onSaved?.();
     onClose();
   };

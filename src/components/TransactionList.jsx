@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { getCategoryById } from '../lib/categories';
 import { formatMoney, getDateLabel } from '../lib/utils';
+import { deleteFromSheet } from '../lib/sheets';
 
 export default function TransactionList({ month }) {
   const transactions = useLiveQuery(async () => {
@@ -17,6 +18,7 @@ export default function TransactionList({ month }) {
 
   const handleDelete = async (id) => {
     await db.transactions.delete(id);
+    deleteFromSheet(id).catch(() => {});
   };
 
   if (!transactions) return null;
