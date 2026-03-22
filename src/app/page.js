@@ -53,16 +53,20 @@ export default function Home() {
       {/* Settings tab */}
       {tab === 'settings' && <SettingsScreen />}
 
-      {/* FAB */}
-      <button
-        onClick={() => setShowAdd(true)}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-accent rounded-full
-                   flex items-center justify-center text-2xl shadow-lg shadow-accent/30
-                   active:scale-90 transition-transform z-40"
-        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        ＋
-      </button>
+      {/* FAB - hidden on settings, higher on chart */}
+      {tab !== 'settings' && (
+        <button
+          onClick={() => setShowAdd(true)}
+          className={`fixed right-4 w-14 h-14 bg-accent rounded-full
+                     flex items-center justify-center text-2xl shadow-lg shadow-accent/30
+                     active:scale-90 transition-transform z-40 ${
+                       tab === 'chart' ? 'bottom-32' : 'bottom-20'
+                     }`}
+          style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          ＋
+        </button>
+      )}
 
       {/* Bottom nav */}
       <BottomNav active={tab} onChange={setTab} />
