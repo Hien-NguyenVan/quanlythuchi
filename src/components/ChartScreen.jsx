@@ -54,14 +54,13 @@ function ArrowRight() {
   );
 }
 
-export default function ChartScreen() {
+export default function ChartScreen({ chartTab }) {
   const todayStr = toDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [chartTab, setChartTab] = useState('category');
   const [selectedDailyDate, setSelectedDailyDate] = useState(todayStr);
 
   // All transactions for various computations
@@ -226,7 +225,7 @@ export default function ChartScreen() {
   }, [allTxs, month]);
 
   return (
-    <div className="hide-scrollbar" style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
+    <div className="hide-scrollbar" style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
       {/* ======================== CONTENT ======================== */}
 
       {/* CATEGORY TAB - per day */}
@@ -620,33 +619,6 @@ export default function ChartScreen() {
         </div>
       )}
 
-      {/* ======================== TAB BAR - FIXED AT BOTTOM ======================== */}
-      <div
-        className="fixed left-0 right-0 z-30 bg-dark-bg border-t border-dark-border"
-        style={{ bottom: 'calc(52px + env(safe-area-inset-bottom))' }}
-      >
-        <div className="flex max-w-lg mx-auto px-2 py-2 gap-1">
-          {[
-            { key: 'category', label: 'Danh mục', icon: '📋' },
-            { key: 'trend', label: 'Xu hướng', icon: '📈' },
-            { key: 'daily', label: 'Theo ngày', icon: '📅' },
-            { key: 'eval', label: 'Đánh giá', icon: '⭐' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setChartTab(tab.key)}
-              className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-colors press-scale ${
-                chartTab === tab.key
-                  ? 'bg-accent/20 text-accent'
-                  : 'text-gray-500 active:bg-dark-card'
-              }`}
-            >
-              <span className="text-lg">{tab.icon}</span>
-              <span className="text-[10px] mt-0.5 font-medium">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ export default function Home() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [chartTab, setChartTab] = useState('category');
 
   const changeMonth = (dir) => {
     const [y, m] = month.split('-').map(Number);
@@ -48,7 +49,7 @@ export default function Home() {
       )}
 
       {/* Chart tab */}
-      {tab === 'chart' && <ChartScreen key={refreshKey} />}
+      {tab === 'chart' && <ChartScreen key={refreshKey} chartTab={chartTab} />}
 
       {/* Settings tab */}
       {tab === 'settings' && <SettingsScreen />}
@@ -60,14 +61,19 @@ export default function Home() {
           className="fixed right-4 w-14 h-14 bg-accent rounded-full
                      flex items-center justify-center text-2xl shadow-lg shadow-accent/30
                      active:scale-90 transition-transform z-40"
-          style={{ bottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+          style={{ bottom: 'calc(68px + env(safe-area-inset-bottom))' }}
         >
           ＋
         </button>
       )}
 
       {/* Bottom nav */}
-      <BottomNav active={tab} onChange={setTab} />
+      <BottomNav
+        active={tab}
+        onChange={setTab}
+        chartTab={chartTab}
+        onChartTabChange={setChartTab}
+      />
 
       {/* Add flow modal */}
       {showAdd && (
