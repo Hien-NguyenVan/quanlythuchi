@@ -57,12 +57,14 @@ export default function Home() {
       {tab !== 'settings' && (
         <button
           onClick={() => setShowAdd(true)}
-          className={`fixed right-4 w-14 h-14 bg-accent rounded-full
+          className="fixed right-4 w-14 h-14 bg-accent rounded-full
                      flex items-center justify-center text-2xl shadow-lg shadow-accent/30
-                     active:scale-90 transition-transform z-40 ${
-                       tab === 'chart' ? 'bottom-32' : 'bottom-20'
-                     }`}
-          style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+                     active:scale-90 transition-transform z-40"
+          style={{
+            bottom: tab === 'chart'
+              ? 'calc(110px + env(safe-area-inset-bottom))'
+              : 'calc(60px + env(safe-area-inset-bottom))'
+          }}
         >
           ＋
         </button>

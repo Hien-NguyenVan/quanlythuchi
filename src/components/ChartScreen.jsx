@@ -200,7 +200,7 @@ export default function ChartScreen() {
   }, [allTxs, month]);
 
   return (
-    <div className="pb-36 hide-scrollbar">
+    <div className="hide-scrollbar" style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
       {/* ======================== CONTENT ======================== */}
 
       {/* CATEGORY TAB - per day */}
@@ -483,7 +483,7 @@ export default function ChartScreen() {
       {/* ======================== TAB BAR - FIXED AT BOTTOM ======================== */}
       <div
         className="fixed left-0 right-0 z-30 bg-dark-bg border-t border-dark-border"
-        style={{ bottom: '52px', paddingBottom: '0' }}
+        style={{ bottom: 'calc(52px + env(safe-area-inset-bottom))' }}
       >
         <div className="flex max-w-lg mx-auto px-2 py-2 gap-1">
           {[
