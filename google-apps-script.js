@@ -18,16 +18,19 @@
 //         - Who has access: Anyone
 //         - Nhấn Deploy → Copy URL
 //
+// ⚠️ LƯU Ý: Nếu đã deploy trước đó, phải vào Deploy → Manage deployments
+//         → chọn deployment → nhấn icon ✏️ → Version: New version → Deploy
+//         để cập nhật code mới!
+//
 // BƯỚC 5: Dán URL vào app Thu Chi → Cài đặt → Google Sheets URL
 //
 // ====================================================
 
 // --- PASTE CODE NÀY VÀO GOOGLE APPS SCRIPT ---
 
-function doPost(e) {
+function doGet(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    var action = data.action;
+    var action = (e && e.parameter && e.parameter.action) || 'list';
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('transactions');
 
@@ -36,29 +39,30 @@ function doPost(e) {
       sheet.appendRow(['id', 'type', 'categoryId', 'amount', 'date', 'createdAt']);
     }
 
+    // === SYNC: nhận data từ app, ghi vào sheet ===
     if (action === 'sync') {
-      // Nhận data từ app, ghi vào sheet
-      var transactions = data.transactions || [];
+      var jsonData = decodeURIComponent(e.parameter.data || '[]');
+      var transactions = JSON.parse(jsonData);
       var existingIds = getExistingIds(sheet);
 
       var newRows = [];
-      transactions.forEach(function(tx) {
+      for (var i = 0; i < transactions.length; i++) {
+        var tx = transactions[i];
         if (existingIds.indexOf(String(tx.id)) === -1) {
           newRows.push([tx.id, tx.type, tx.categoryId, tx.amount, tx.date, tx.createdAt]);
         }
-      });
+      }
 
       if (newRows.length > 0) {
         sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 6).setValues(newRows);
       }
 
-      return ContentService
-        .createTextOutput(JSON.stringify({ success: true, added: newRows.length }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse({ success: true, added: newRows.length });
     }
 
+    // === DELETE: xóa 1 giao dịch ===
     if (action === 'delete') {
-      var deleteId = String(data.id);
+      var deleteId = String(e.parameter.id);
       var rows = sheet.getDataRange().getValues();
       for (var i = rows.length - 1; i >= 1; i--) {
         if (String(rows[i][0]) === deleteId) {
@@ -66,53 +70,31 @@ function doPost(e) {
           break;
         }
       }
-      return ContentService
-        .createTextOutput(JSON.stringify({ success: true }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse({ success: true });
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: 'Unknown action' }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doGet(e) {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('transactions');
-
-    if (!sheet || sheet.getLastRow() <= 1) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ transactions: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
+    // === LIST: trả về toàn bộ giao dịch ===
+    if (sheet.getLastRow() <= 1) {
+      return jsonResponse({ transactions: [] });
     }
 
     var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
-    var transactions = data.map(function(row) {
-      return {
-        id: row[0],
-        type: row[1],
-        categoryId: row[2],
-        amount: Number(row[3]),
-        date: row[4],
-        createdAt: row[5]
-      };
-    });
+    var transactions = [];
+    for (var i = 0; i < data.length; i++) {
+      transactions.push({
+        id: data[i][0],
+        type: data[i][1],
+        categoryId: data[i][2],
+        amount: Number(data[i][3]),
+        date: data[i][4],
+        createdAt: data[i][5]
+      });
+    }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ transactions: transactions }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ transactions: transactions });
 
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ error: err.message });
   }
 }
 
@@ -120,4 +102,10 @@ function getExistingIds(sheet) {
   if (sheet.getLastRow() <= 1) return [];
   var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
   return ids.map(function(row) { return String(row[0]); });
+}
+
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
