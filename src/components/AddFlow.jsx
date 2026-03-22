@@ -55,6 +55,7 @@ export default function AddFlow({ onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 bg-dark-bg slide-up flex flex-col">
       {/* Header */}
+      <div style={{ paddingTop: 'env(safe-area-inset-top)' }} className="bg-dark-card" />
       <div className="flex items-center justify-between px-4 py-3 bg-dark-card">
         <button onClick={handleBack} className="text-gray-400 press-scale p-2">
           {step === 0 ? (
