@@ -62,6 +62,7 @@ export default function ChartScreen() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [chartTab, setChartTab] = useState('category');
+  const [selectedDailyDate, setSelectedDailyDate] = useState(todayStr);
 
   // All transactions for various computations
   const allTxs = useLiveQuery(() => db.transactions.toArray());
@@ -142,25 +143,50 @@ export default function ChartScreen() {
   }, [allTxs, months]);
 
   // ==========================================
-  // DAILY TAB - bar chart by day in month
+  // DAILY TAB - heatmap calendar + detail
   // ==========================================
-  const dailyData = useMemo(() => {
-    if (!monthTxs) return [];
-    const incMap = {};
-    const expMap = {};
+  const dailyMap = useMemo(() => {
+    if (!monthTxs) return {};
+    const map = {};
     monthTxs.forEach((tx) => {
-      const day = parseInt(tx.date.split('-')[2]);
-      if (tx.type === 'income') incMap[day] = (incMap[day] || 0) + tx.amount;
-      else expMap[day] = (expMap[day] || 0) + tx.amount;
+      const dateStr = tx.date;
+      if (!map[dateStr]) map[dateStr] = { income: 0, expense: 0, txs: [] };
+      if (tx.type === 'income') map[dateStr].income += tx.amount;
+      else map[dateStr].expense += tx.amount;
+      map[dateStr].txs.push(tx);
     });
+    return map;
+  }, [monthTxs]);
+
+  const maxDailyExpense = useMemo(() => {
+    let max = 0;
+    Object.values(dailyMap).forEach((d) => { if (d.expense > max) max = d.expense; });
+    return max;
+  }, [dailyMap]);
+
+  const dailyCalendar = useMemo(() => {
     const [y, m] = month.split('-').map(Number);
     const daysInMonth = new Date(y, m, 0).getDate();
-    const result = [];
+    const firstDayRaw = new Date(y, m - 1, 1).getDay();
+    const firstDay = firstDayRaw === 0 ? 6 : firstDayRaw - 1;
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) {
-      result.push({ name: d, income: incMap[d] || 0, expense: expMap[d] || 0 });
+      const dateStr = `${month}-${String(d).padStart(2, '0')}`;
+      const data = dailyMap[dateStr];
+      cells.push({ day: d, dateStr, expense: data?.expense || 0, income: data?.income || 0, hasTx: !!data });
     }
-    return result;
-  }, [monthTxs, month]);
+    return cells;
+  }, [month, dailyMap]);
+
+  const selectedDayData = useMemo(() => {
+    const data = dailyMap[selectedDailyDate];
+    if (!data) return null;
+    return {
+      ...data,
+      txs: data.txs.sort((a, b) => b.createdAt - a.createdAt),
+    };
+  }, [dailyMap, selectedDailyDate]);
 
   // ==========================================
   // EVAL TAB
@@ -337,7 +363,7 @@ export default function ChartScreen() {
         </div>
       )}
 
-      {/* DAILY TAB */}
+      {/* DAILY TAB - Heatmap calendar + detail */}
       {chartTab === 'daily' && (
         <div className="fade-in">
           {/* Month nav */}
@@ -350,19 +376,133 @@ export default function ChartScreen() {
               <ArrowRight />
             </button>
           </div>
-          <div className="px-2">
-            <div className="bg-dark-card rounded-xl p-4 mx-2">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2A3E" />
-                  <XAxis dataKey="name" tick={{ fill: '#8B8BA7', fontSize: 9 }} axisLine={false} interval={4} />
-                  <YAxis tick={{ fill: '#8B8BA7', fontSize: 10 }} axisLine={false} tickFormatter={formatMoneyShort} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="expense" name="Chi" fill="#FF6B6B" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="income" name="Thu" fill="#00C897" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-3 px-4 mb-2">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-gray-700" />
+              <span className="text-[10px] text-gray-500">Không chi</span>
             </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-red-900/60" />
+              <span className="text-[10px] text-gray-500">Ít</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-red-500" />
+              <span className="text-[10px] text-gray-500">Nhiều</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm border border-income" />
+              <span className="text-[10px] text-gray-500">Có thu</span>
+            </div>
+          </div>
+
+          {/* Heatmap calendar */}
+          <div className="px-4 mb-4">
+            <div className="bg-dark-card rounded-xl p-3">
+              {/* Weekday header */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((wd, i) => (
+                  <div key={wd} className={`text-center text-[10px] font-medium py-0.5 ${i === 6 ? 'text-red-400' : 'text-gray-500'}`}>
+                    {wd}
+                  </div>
+                ))}
+              </div>
+              {/* Calendar cells */}
+              <div className="grid grid-cols-7 gap-1">
+                {dailyCalendar.map((cell, i) => {
+                  if (!cell) return <div key={`e-${i}`} />;
+                  const intensity = maxDailyExpense > 0 ? cell.expense / maxDailyExpense : 0;
+                  const isSelected = selectedDailyDate === cell.dateStr;
+                  const isFuture = cell.dateStr > todayStr;
+
+                  let bgColor;
+                  if (isFuture) bgColor = 'rgba(42,42,62,0.3)';
+                  else if (cell.expense === 0) bgColor = 'rgba(42,42,62,0.8)';
+                  else {
+                    const r = Math.round(80 + intensity * 175);
+                    const g = Math.round(30 + (1 - intensity) * 20);
+                    const b = Math.round(30 + (1 - intensity) * 20);
+                    bgColor = `rgba(${r},${g},${b},${0.4 + intensity * 0.6})`;
+                  }
+
+                  return (
+                    <button
+                      key={cell.dateStr}
+                      onClick={() => !isFuture && setSelectedDailyDate(cell.dateStr)}
+                      disabled={isFuture}
+                      className={`relative flex flex-col items-center justify-center py-2 rounded-lg transition-all press-scale ${
+                        isSelected ? 'ring-2 ring-accent scale-105' : ''
+                      } ${isFuture ? 'opacity-30' : ''}`}
+                      style={{ backgroundColor: bgColor }}
+                    >
+                      <span className={`text-xs font-bold ${isSelected ? 'text-white' : isFuture ? 'text-gray-600' : 'text-gray-200'}`}>
+                        {cell.day}
+                      </span>
+                      {cell.expense > 0 && (
+                        <span className="text-[8px] text-gray-300 mt-0.5">
+                          {formatMoneyShort(cell.expense)}
+                        </span>
+                      )}
+                      {cell.income > 0 && (
+                        <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-income" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Selected day detail */}
+          <div className="px-4">
+            {(() => {
+              const d = new Date(selectedDailyDate + 'T00:00:00');
+              const weekday = d.toLocaleDateString('vi-VN', { weekday: 'long' });
+              const formatted = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+              return (
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-bold">{getDateLabel(selectedDailyDate)}</p>
+                    <p className="text-xs text-gray-500">{weekday}, {formatted}</p>
+                  </div>
+                  {selectedDayData && (
+                    <div className="text-right">
+                      {selectedDayData.income > 0 && (
+                        <span className="text-xs text-income mr-2">+{formatMoneyShort(selectedDayData.income)}</span>
+                      )}
+                      <span className="text-xs text-expense">-{formatMoneyShort(selectedDayData.expense)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {selectedDayData && selectedDayData.txs.length > 0 ? (
+              <div className="space-y-2">
+                {selectedDayData.txs.map((tx) => {
+                  const cat = getCategoryById(tx.categoryId);
+                  const isIncome = tx.type === 'income';
+                  return (
+                    <div key={tx.id} className="flex items-center bg-dark-card rounded-xl px-4 py-3">
+                      <span className="text-xl mr-3">{cat?.icon || '📝'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{cat?.name || 'Khác'}</p>
+                        <p className="text-xs text-gray-500">{cat?.group}</p>
+                      </div>
+                      <span className={`text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}>
+                        {isIncome ? '+' : '-'}{formatMoney(tx.amount)}₫
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <span className="text-3xl block mb-2">📭</span>
+                <p className="text-sm">Không có giao dịch</p>
+              </div>
+            )}
           </div>
         </div>
       )}
